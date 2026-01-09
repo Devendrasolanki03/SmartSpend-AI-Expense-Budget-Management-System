@@ -1,0 +1,141 @@
+package com.example.demo.service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.demo.dto.AiInsightResponseDTO;
+import com.example.demo.entity.AiInsight;
+import com.example.demo.entity.InsightType;
+import com.example.demo.entity.User;
+import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.repository.AiInsightRepository;
+import com.example.demo.repository.UserRepository;
+
+@Service
+public class AiInsightService {
+
+    private final AiInsightRepository insightRepo;
+    private final UserRepository userRepo;
+    private final ChatClient chatClient;
+
+    public AiInsightService(
+            AiInsightRepository insightRepo,
+            UserRepository userRepo,
+            ChatClient chatClient) {
+
+        this.insightRepo = insightRepo;
+        this.userRepo = userRepo;
+        this.chatClient = chatClient;
+    }
+
+    // ================= SAVE INSIGHT =================
+    @Transactional
+    public AiInsightResponseDTO saveInsight(
+            Long userId,
+            String userPrompt,
+            InsightType insightType) {
+
+        if (userPrompt == null || userPrompt.trim().isEmpty()) {
+            throw new IllegalArgumentException("Prompt cannot be empty");
+        }
+
+        User user = userRepo.findById(userId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with ID: " + userId));
+
+        // 🔥 Build location context
+        String locationContext = buildLocationContext(user);
+
+        // 🔥 Call ChatGPT with location awareness
+        String aiResponse = chatClient
+                .prompt("""
+                    You are a professional Indian personal finance advisor.
+
+                    %s
+
+                    Give a short, clear, and actionable financial insight.
+
+                    User input:
+                    %s
+                    """.formatted(locationContext, userPrompt))
+                .call()
+                .content();
+
+        AiInsight insight = AiInsight.builder()
+                .insightText(aiResponse)
+                .insightType(insightType)
+                .user(user)
+                .build();
+
+        return mapToDTO(insightRepo.save(insight));
+    }
+
+    // ================= GET USER INSIGHTS =================
+    @Transactional(readOnly = true)
+    public List<AiInsightResponseDTO> getInsightsByUser(Long userId) {
+
+        if (!userRepo.existsById(userId)) {
+            throw new ResourceNotFoundException(
+                    "User not found with ID: " + userId);
+        }
+
+        return insightRepo.findByUser_UserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // ================= FILTER BY TYPE =================
+    @Transactional(readOnly = true)
+    public List<AiInsightResponseDTO> getInsightsByType(
+            Long userId,
+            InsightType insightType) {
+
+        return insightRepo
+                .findByUser_UserIdAndInsightTypeOrderByCreatedAtDesc(
+                        userId, insightType)
+                .stream()
+                .map(this::mapToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // ================= DELETE =================
+    @Transactional
+    public void deleteInsight(Long insightId, Long userId) {
+
+        AiInsight insight = insightRepo
+                .findByInsightIdAndUser_UserId(insightId, userId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Insight not found or not authorized"));
+
+        insightRepo.delete(insight);
+    }
+
+    // ================= LOCATION HELPER =================
+    private String buildLocationContext(User user) {
+
+        if (user.getCity() != null && user.getCountry() != null) {
+            return "User location: " + user.getCity() + ", " + user.getCountry()
+                    + ". Consider cost-of-living differences.";
+        }
+
+        return "User location is not specified. Give general Indian financial advice.";
+    }
+
+    // ================= MAPPER =================
+    private AiInsightResponseDTO mapToDTO(AiInsight insight) {
+
+        return new AiInsightResponseDTO(
+                insight.getInsightId(),
+                insight.getInsightText(),
+                insight.getInsightType(),
+                insight.getCreatedAt()
+        );
+    }
+}
