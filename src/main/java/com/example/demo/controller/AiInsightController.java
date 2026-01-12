@@ -1,6 +1,6 @@
 package com.example.demo.controller;
 
-
+import java.security.Principal;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.*;
@@ -20,41 +20,46 @@ public class AiInsightController {
     }
 
     // ================= CREATE =================
-    @PostMapping("/{userId}")
+    @PostMapping
     public AiInsightResponseDTO createInsight(
-            @PathVariable Long userId,
+            Principal principal,
             @RequestParam InsightType insightType,
             @RequestBody String prompt) {
 
         return aiInsightService.saveInsight(
-                userId,
+                principal.getName(),   // email from JWT
                 prompt,
                 insightType
         );
     }
 
     // ================= GET ALL =================
-    @GetMapping("/user/{userId}")
-    public List<AiInsightResponseDTO> getInsights(@PathVariable Long userId) {
-        return aiInsightService.getInsightsByUser(userId);
+    @GetMapping
+    public List<AiInsightResponseDTO> getInsights(Principal principal) {
+        return aiInsightService.getInsightsByUser(principal.getName());
     }
 
     // ================= GET BY TYPE =================
-    @GetMapping("/user/{userId}/type/{type}")
+    @GetMapping("/type/{type}")
     public List<AiInsightResponseDTO> getByType(
-            @PathVariable Long userId,
-            @PathVariable InsightType type) {
+            Principal principal,
+            @PathVariable String type) {
 
-        return aiInsightService.getInsightsByType(userId, type);
+        InsightType insightType = InsightType.valueOf(type.toUpperCase());
+
+        return aiInsightService.getInsightsByType(
+                principal.getName(),
+                insightType
+        );
     }
 
     // ================= DELETE =================
-    @DeleteMapping("/{insightId}/user/{userId}")
+    @DeleteMapping("/{insightId}")
     public String deleteInsight(
             @PathVariable Long insightId,
-            @PathVariable Long userId) {
+            Principal principal) {
 
-        aiInsightService.deleteInsight(insightId, userId);
+        aiInsightService.deleteInsight(insightId, principal.getName());
         return "AI insight deleted successfully";
     }
 }

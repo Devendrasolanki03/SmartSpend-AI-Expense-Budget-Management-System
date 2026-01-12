@@ -37,19 +37,15 @@ public class AiFinanceService {
     public String generateAdvice(String email) {
 
         User user = getUserByEmail(email);
+        List<Expense> expenses = expenseRepo.findByUserWithCategory(user);
 
-        List<Expense> expenses = expenseRepo.findByUser(user);
-
-        // 🔥 Add location context
         String locationContext = buildLocationContext(user);
-
         String prompt = buildPrompt(expenses, locationContext);
-
         String advice = callAi(prompt);
 
         if (advice != null && !advice.isBlank()) {
             insightService.saveInsight(
-                    user.getUserId(),
+                    email,                 // ✅ SECURE
                     advice,
                     InsightType.ANALYSIS
             );
@@ -68,7 +64,6 @@ public class AiFinanceService {
         User user = getUserByEmail(email);
 
         String locationContext = buildLocationContext(user);
-
         String securedPrompt = """
             %s
 
@@ -80,7 +75,7 @@ public class AiFinanceService {
 
         if (response != null && !response.isBlank()) {
             insightService.saveInsight(
-                    user.getUserId(),
+                    email,                // ✅ SECURE
                     response,
                     InsightType.SAVINGS
             );
@@ -153,11 +148,9 @@ public class AiFinanceService {
         String expenseData = expenses.stream()
                 .map(e -> String.format(
                         "- %s: ₹%.2f (%s)",
-                        e.getCategory(),
+                        e.getCategory().getName(),   // already correct
                         e.getAmount(),
-                        e.getDescription() != null
-                                ? e.getDescription()
-                                : "No description"
+                        e.getDescription() != null ? e.getDescription() : "No description"
                 ))
                 .collect(Collectors.joining("\n"));
 

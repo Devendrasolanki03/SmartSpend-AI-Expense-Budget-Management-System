@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.example.demo.dto.ExpenseDTO;
+import com.example.demo.dto.ExpenseResponseDTO;
 import com.example.demo.dto.IncomeDTO;
 import com.example.demo.entity.Category;
 import com.example.demo.entity.Expense;
@@ -50,7 +50,7 @@ public class FinanceService {
     }
 
     // ---------------- ADD EXPENSE ----------------
-    public Expense addExpense(String email, ExpenseDTO dto) {
+    public Expense addExpense(String email, ExpenseResponseDTO dto) {
 
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -74,6 +74,7 @@ public class FinanceService {
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return expenseRepo.findByUser(user);
+        return expenseRepo.findByUserWithCategory(user);
+
     }
 }

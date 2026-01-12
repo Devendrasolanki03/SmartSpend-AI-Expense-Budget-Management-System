@@ -35,7 +35,7 @@ public class AiInsightService {
     // ================= SAVE INSIGHT =================
     @Transactional
     public AiInsightResponseDTO saveInsight(
-            Long userId,
+            String email,
             String userPrompt,
             InsightType insightType) {
 
@@ -43,10 +43,10 @@ public class AiInsightService {
             throw new IllegalArgumentException("Prompt cannot be empty");
         }
 
-        User user = userRepo.findById(userId)
+        User user = userRepo.findByEmail(email)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found with ID: " + userId));
+                                "User not found with email: " + email));
 
         // 🔥 Build location context
         String locationContext = buildLocationContext(user);
@@ -77,14 +77,14 @@ public class AiInsightService {
 
     // ================= GET USER INSIGHTS =================
     @Transactional(readOnly = true)
-    public List<AiInsightResponseDTO> getInsightsByUser(Long userId) {
+    public List<AiInsightResponseDTO> getInsightsByUser(String email) {
 
-        if (!userRepo.existsById(userId)) {
-            throw new ResourceNotFoundException(
-                    "User not found with ID: " + userId);
-        }
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with email: " + email));
 
-        return insightRepo.findByUser_UserIdOrderByCreatedAtDesc(userId)
+        return insightRepo.findByUser_UserIdOrderByCreatedAtDesc(user.getUserId())
                 .stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -93,12 +93,17 @@ public class AiInsightService {
     // ================= FILTER BY TYPE =================
     @Transactional(readOnly = true)
     public List<AiInsightResponseDTO> getInsightsByType(
-            Long userId,
+            String email,
             InsightType insightType) {
+
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with email: " + email));
 
         return insightRepo
                 .findByUser_UserIdAndInsightTypeOrderByCreatedAtDesc(
-                        userId, insightType)
+                        user.getUserId(), insightType)
                 .stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -106,10 +111,15 @@ public class AiInsightService {
 
     // ================= DELETE =================
     @Transactional
-    public void deleteInsight(Long insightId, Long userId) {
+    public void deleteInsight(Long insightId, String email) {
+
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with email: " + email));
 
         AiInsight insight = insightRepo
-                .findByInsightIdAndUser_UserId(insightId, userId)
+                .findByInsightIdAndUser_UserId(insightId, user.getUserId())
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Insight not found or not authorized"));

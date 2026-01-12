@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.example.demo.dto.ExpenseDTO;
+import com.example.demo.dto.ExpenseResponseDTO;
 import com.example.demo.dto.IncomeDTO;
 import com.example.demo.entity.Expense;
 import com.example.demo.entity.Income;
@@ -39,7 +39,7 @@ public class FinanceController {
     @PostMapping("/expense")
     public ResponseEntity<Expense> addExpense(
             Principal principal,
-            @Valid @RequestBody ExpenseDTO dto) {
+            @Valid @RequestBody ExpenseResponseDTO dto) {
 
         Expense expense = financeService.addExpense(principal.getName(), dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(expense);
